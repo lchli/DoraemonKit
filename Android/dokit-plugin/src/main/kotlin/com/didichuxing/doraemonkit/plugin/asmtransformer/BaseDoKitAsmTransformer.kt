@@ -1,13 +1,17 @@
 package com.didichuxing.doraemonkit.plugin.asmtransformer
 
+import com.didichuxing.doraemonkit.plugin.classtransformer.AopVisitor
 import com.didichuxing.doraemonkit.plugin.println
 import com.didiglobal.booster.annotations.Priority
 import com.didiglobal.booster.transform.TransformContext
 import com.didiglobal.booster.transform.Transformer
 import com.didiglobal.booster.transform.asm.ClassTransformer
 import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
+import java.lang.Exception
 import java.lang.management.ManagementFactory
 import java.lang.management.ThreadMXBean
 import java.util.*
@@ -56,15 +60,27 @@ open class BaseDoKitAsmTransformer : Transformer {
     }
 
     override fun transform(context: TransformContext, bytecode: ByteArray): ByteArray {
-        return ClassWriter(ClassWriter.COMPUTE_MAXS).also { writer ->
-            this.transformers.fold(ClassNode().also { klass ->
-                ClassReader(bytecode).accept(klass, 0)
-            }) { klass, transformer ->
-                this.threadMxBean.sumCpuTime(transformer) {
-                    transformer.transform(context, klass)
-                }
-            }.accept(writer)
-        }.toByteArray()
+//        return ClassWriter(ClassWriter.COMPUTE_MAXS).also { writer ->
+//            this.transformers.fold(ClassNode().also { klass ->
+//                ClassReader(bytecode).accept(klass, 0)
+//            }) { klass, transformer ->
+//                this.threadMxBean.sumCpuTime(transformer) {
+//                    transformer.transform(context, klass)
+//                }
+//            }.accept(writer)
+//        }.toByteArray()
+        try {
+            val reader: ClassReader = ClassReader(bytecode)
+            val writer = ClassWriter(reader, 0)
+            val visitor: ClassVisitor = AopVisitor(Opcodes.ASM7, writer)
+            reader.accept(visitor, ClassReader.EXPAND_FRAMES)
+            return writer.toByteArray()
+        } catch (e: Exception) {
+            // System.out.println("1");
+            e.printStackTrace()
+        }
+
+        return bytecode
     }
 
     override fun onPostTransform(context: TransformContext) {
